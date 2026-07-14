@@ -1,0 +1,8 @@
+# 컴파일된 실행 파일
+aes_program
+
+# OS 시스템 찌꺼기 파일 (맥에서 자동으로 생김)
+.DS_Store
+
+# AES 구현을 위한 의사코드
+Pseudo.txt
