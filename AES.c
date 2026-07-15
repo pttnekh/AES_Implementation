@@ -95,7 +95,7 @@ void KeyExpansion(byte key[], word w[], int Nk) {
 	while(i < Nb * (Nr+1)) {
 		temp = w[i-1];
 		if (i % Nk == 0){
-			temp = SubWord(RotWord(temp)) ^ Rcon[i/Nk];
+			temp = SubWord(RotWord(temp)) ^ ((word)Rcon[i/Nk] << 24);
 		} else if(Nk > 6 & i % Nk == 4){
 			temp = SubWord(temp);
 		}
