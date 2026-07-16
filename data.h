@@ -11,6 +11,7 @@ typedef uint32_t word;  // 4바이트
 // 외부변수 (외부에 있는 변수를 사용하겠다)
 extern const byte sbox[256];
 extern const byte Rcon[11];
+extern const byte MC_MATRIX[4][4];
 
 #endif // 조건부 컴파일 블록이 끝남을 명시
 
