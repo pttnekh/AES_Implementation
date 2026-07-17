@@ -1,56 +1,59 @@
 #include <stdio.h>
-#include "data.h"  // sbox, Rcon, byte, word를 쓰기 위해 가져옴
 #include <stdint.h>
+#include "data.h"  // sbox, Rcon, byte, word를 쓰기 위해 가져옴
 
 #define Nb 4
 
 // 함수 원형(Prototype) 선언
 word RotWord(word w);
 word SubWord(word w);
-void KeyExpansion(byte key[], word w[]);
+void KeyExpansion(const byte key[], word w[], int Nk, int Nr);
 void AddRoundKey(byte state[16], word w[], int round);
 void SubBytes(byte state[16]);
 void MixColumns(byte state[16]);
 void ShiftRows(byte state[16]);
 
+void AES_Encrypt(const byte plainText[16], const byte key[16], int keyLength, byte cipherText[16]) {
+	int Nk, Nr;
+	
+	if (keyLength == 128) {
+		Nk = 4;
+		Nr = 10;
+	} else if (keyLength == 256) {
+		Nk = 8;
+		Nr = 14;
+	} else {
+		printf("Unsupported AES key length");
+		return; // 쓰레기값 연산 방지(Early Return)
+	}
 
-void AES_Encrypt(byte plainText[16], byte cipherText[16]) {
 	// 입력 평문 사용
 	byte state[16];
 	for (int i = 0; i < 16; i++) {
 		state[i] = plainText[i];
 	}
 
-	// AES를 만든 NIST 표준 문서(FIPS 197)에 나오는 공식 예제 키
-	byte key[16] = {
-        0x2b, 0x7e, 0x15, 0x16, 
-        0x28, 0xae, 0xd2, 0xa6,
-        0xab, 0xf7, 0x15, 0x88, 
-        0x09, 0xcf, 0x4f, 0x3c
-    };
+    // AES-256 최대 워드 수(60개) 기준 할당
+	word w[60];
 
-    // AES-128 기준: 4워드(Nb) * 11라운드(Nr+1) = 총 44워드 필요
-    word w[44];
-
-    // 키 확장 함수 (Nk = 4), Nk는 비밀키의 워드 개수, 우린 128비트 사용하니 4워드
-    KeyExpansion(key, w);
+    // 키 확장
+    KeyExpansion(key, w, Nk, Nr);
 
 	// [Pre-Round] Round 0
     AddRoundKey(state, w, 0);	
 	
-	// [Main Round] Round 1 ~ 9
-	for (int round = 1; round <= 9; round++){ // 0 라운드 했으니 1 라운드부터 
-		SubBytes(state);
+	// [Main Round] Round 1 ~ (Nr - 1)
+	for (int round = 1; round < Nr; round++){ // 0 라운드 했으니 1 라운드부터 
+		SubBytes(state); 
 		ShiftRows(state);
 		MixColumns(state);
-		// 각 라운드마다 4워드(16바이트)씩 오프셋을 줌
 		AddRoundKey(state, w, round);
 	}
 	
-	// [Final Round] Round 10
+	// [Final Round] Round Nr
 	SubBytes(state);
 	ShiftRows(state);
-	AddRoundKey(state, w, 10);
+	AddRoundKey(state, w, Nr);
 
 	// 최종 결과를 출력 배열에 복사
 	for (int i = 0; i < 16; i++) {
@@ -85,25 +88,36 @@ word SubWord(word w) {
 	return result;
 }
 
-void KeyExpansion(byte key[], word w[]) {
+void KeyExpansion(const byte key[], word w[], int Nk, int Nr) {
 	// 역할: 기존의 키 길이를 늘려 라운드 키 제작 -> 원본키를 유추할 수 없도록 안전한 새 키를 만듦
-	
 	word temp;
+
+	// Nb(블록 크기)는 AES 표준에서 항상 4워드(16바이트)로 고정
+	int totalWords = (Nr + 1) * Nb;
 	
-	for (int i = 0; i < 4; i++) {
+	// 첫 Nk개의 워드는 원본 키에서 그대로 복사
+	// AES-128이면 4번(16바이트), AES-256이면 8번(32바이트) 반복
+	for (int i = 0; i < Nk; i++) {
 		w[i] = ((word)key[4*i]     << 24) |
        		   ((word)key[4*i + 1] << 16) |
        		   ((word)key[4*i + 2] << 8)  |
        	 	   ((word)key[4*i + 3]);
 	}
 	
-	for (int i = 4; i < 44; i++) {
+	// 나머지 라운드 키 생성
+	for (int i = Nk; i < totalWords; i++) {
 		temp = w[i-1]; // 직전 word
 		
-		if (i % 4 == 0) {
-			temp = SubWord(RotWord(temp)) ^ ((word)Rcon[i / 4] << 24);
+		// 인덱스가 Nk의 배수일 때
+		if (i % Nk == 0) {
+			temp = SubWord(RotWord(temp)) ^ ((word)Rcon[i / Nk] << 24);
 		}
-		w[i] = w[i- 4] ^ temp;
+		// AES-256
+		else if (Nk > 6 && i % Nk == 4) {
+			temp = SubWord(temp); // 추가로 SubWord 연산을 한 번 더 거쳐 비선형성 극대화
+		}
+		// 최종적으로 Nk 번째 앞의 워드와 연산하여 현재 워드 완성
+		w[i] = w[i- Nk] ^ temp;
 	}
 }
 
@@ -150,6 +164,15 @@ static inline byte mul2(byte x) {
 static inline byte mul3(byte x) {
     return mul2(x) ^ x;
 }
+
+/*
+ * [MixColumns 행렬 곱셈 원리]
+ * 아래 연산은 AES 공식 문서에 정의된 다음의 MDS 행렬을 열(Column) 벡터에 곱하는 과정입니다.
+ * | 02 03 01 01 |   | temp[0] |
+ * | 01 02 03 01 | * | temp[1] |
+ * | 01 01 02 03 |   | temp[2] |
+ * | 03 01 01 02 |   | temp[3] |
+ */
 
 void MixColumns(byte state[16]) {
 	// 역할: 각 열에 대해 MDS 행렬을 곱하여 확산 효과 극대화
