@@ -11,29 +11,32 @@ To optimize execution speed, this code heavily relies on pre-computed Lookup Tab
 
 I am constantly learning, feedback is always welcome! If you find any logical bugs or have suggestions for improvement, please feel free to open an **Issue** or submit a **Pull Request**.
 
-# Example
+# Build and Run
 This project uses **the GCC compiler**. Please open your terminal and run commands below in order.
 
-Build the project
+1. Build the project
 ```
-gcc AES.c Data.c -o aes_program
+gcc main.c AES.c data.c -o aes_program
 ```
 
-And run:
+2. And run:
 ```
 ./aes_program
 ```
 
-### Current Progress: Key Expansion Phase
-Currently, the **Key Expansion** module is successfully implemented and tested. The main encryption logic (`AddRoundKey`, `SubBytes`, etc.) is actively under development.
-
-**Execution Output (Key Expansion):**
-```text
---- AES-128 Key Expansion result ---
-Round  0 Key: 2B7E1516 28AED2A6 ABF71588 09CF4F3C 
-Round  1 Key: A0FAFE17 88542CB1 23A33939 2A6C7605 
-Round  2 Key: F2C295F2 7A96B943 5935807A 7359F67F 
-...      ...
-Round  9 Key: AC7766F3 19FADC21 28D12941 575C006E 
-Round 10 Key: D014F9A8 C9EE2589 E13F0CC8 B6630CA6
+3. Expected Output
+When you run the program, it will execute both AES-128 and AES-256 encryption tests using the official NIST test vectors.
 ```
+=== AES-128 Encryption ===
+Plaintext : 32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34 
+Key (128) : 2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c 
+Ciphertext: 39 25 84 1d 02 dc 09 fb dc 11 85 97 19 6a 0b 32 
+
+=== AES-256 Encryption ===
+Plaintext : 32 43 f6 a8 88 5a 30 8d 31 31 98 a2 e0 37 07 34 
+Key (256) : 60 3d eb 10 15 ca 71 be 2b 73 ae f0 85 7d 77 81 1f 35 2c 07 3b 61 08 d7 2d 98 10 a3 09 14 df f4 
+Ciphertext: 30 21 61 3a 97 3e 58 2f 4a 29 23 41 37 ae c4 94
+```
+
+## References
+National Institute of Standards and Technology (2001) Advanced Encryption Standard (AES). (Department of Commerce, Washington, D.C.), Federal Information Processing Standards Publication (FIPS) NIST FIPS 197, updated May 9, 2023. https://doi.org/10.6028/NIST.FIPS.197-upd1
